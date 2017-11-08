@@ -211,9 +211,10 @@ function mouse(e) {
 function key(e) {
   e.preventDefault();
   state.keys.set(e.code, e.type === "keydown");
-  if (e.code === "Tab") {
+  if (e.code === "Tab" && e.type === "keyup") {
     if (state.mode === Mode.GOD) {
       state.mode = Mode.PLAYER;
+      state.camera.position[1] = 0;
     } else {
       state.mode = Mode.GOD;
     }
@@ -232,27 +233,31 @@ function getTileCoordinates(tile, position) {
 }
 
 function collidesWithX(x,y,cx,cy) {
-  const noffset = getDataOffset(x,y,state.map.data.width);
-  const ntile = state.map.data.data[noffset];
+  const noffset = getDataOffset(x,y,state.map.tiles.width);
+  const ntile = state.map.tiles.data[noffset];
+  const ntex = state.map.textures.data[noffset];
   if (x - cx < 0) {
-    const coffset = getDataOffset(cx,cy,state.map.data.width);
-    const ctile = state.map.data.data[coffset];
-    return (!(ntile & 0x01)) || ((ctile >> 6) & 0x01);
+    const coffset = getDataOffset(cx,cy,state.map.tiles.width);
+    const ctile = state.map.tiles.data[coffset];
+    const ctex = state.map.textures.data[coffset];
+    return (!(ntile & 0x01)) || ((ctile >> 6) & 0x01) && ctex & 0x0F;
   } else if (x - cx > 0) {
-    return (!(ntile & 0x01)) || ((ntile >> 6) & 0x01);
+    return (!(ntile & 0x01)) || ((ntile >> 6) & 0x01) && ntex & 0x0F;
   }
   return !(ntile & 0x01);
 }
 
 function collidesWithY(x,y,cx,cy) {
-  const noffset = getDataOffset(x,y,state.map.data.width);
-  const ntile = state.map.data.data[noffset];
+  const noffset = getDataOffset(x,y,state.map.tiles.width);
+  const ntile = state.map.tiles.data[noffset];
+  const ntex = state.map.textures.data[noffset];
   if (y - cy < 0) {
-    const coffset = getDataOffset(cx,cy,state.map.data.width);
-    const ctile = state.map.data.data[coffset];
-    return (!(ntile & 0x01)) || ((ctile >> 5) & 0x01);
+    const coffset = getDataOffset(cx,cy,state.map.tiles.width);
+    const ctile = state.map.tiles.data[coffset];
+    const ctex = state.map.textures.data[coffset];
+    return (!(ntile & 0x01)) || ((ctile >> 5) & 0x01) && ctex & 0x0F;
   } else if (y - cy > 0) {
-    return (!(ntile & 0x01)) || ((ntile >> 5) & 0x01);
+    return (!(ntile & 0x01)) || ((ntile >> 5) & 0x01) && ntex & 0x0F;
   }
   return !(ntile & 0x01);
 }
@@ -484,18 +489,21 @@ function renderDebug() {
   dcx.fillStyle = "white";
   dcx.fillText(`${px.toFixed(2)},${py.toFixed(2)},${pz.toFixed(2)}`, 0, 0);
   dcx.fillText(`${tx},${ty},${tz}`, 0, 16);
+  dcx.fillText(`Mode: ${state.mode === Mode.GOD ? "God" : "Player"} (To change between modes use Tab key)`, 0, 32);
+  dcx.fillText("Use AWSD to move", 0, 48);
 
-  if (state.map.data) {
+  if (state.map.tiles) {
     const rsx = tx - V;
     const rsy = tz - V;
     const sx = Math.max(0, rsx);
     const sy = Math.max(0, rsy);
-    const ex = Math.min(state.map.data.width, tx + V + 1);
-    const ey = Math.min(state.map.data.height, tz + V + 1);
+    const ex = Math.min(state.map.tiles.width, tx + V + 1);
+    const ey = Math.min(state.map.tiles.height, tz + V + 1);
     for (let y = sy; y < ey; y++) {
       for (let x = sx; x < ex; x++) {
-        const offset = getDataOffset(x,y,state.map.data.width);
-        const tile = state.map.data.data[offset];
+        const offset = getDataOffset(x,y,state.map.tiles.width);
+        const tile = state.map.tiles.data[offset];
+        const texture = state.map.textures.data[offset];
         const tcx = ctx + ((x - rsx) * S);
         const tcy = cty + ((y - rsy) * S);
         if (!(tile & 0x01)) {
@@ -506,8 +514,8 @@ function renderDebug() {
           dcx.strokeRect(tcx, tcy, S, S);
         }
 
-        const hasNorthWall = (tile >> 5) & 0x01;
-        const hasWestWall = (tile >> 6) & 0x01;
+        const hasNorthWall = ((tile >> 5) & 0x01) && (texture & 0x0F);
+        const hasWestWall = ((tile >> 6) & 0x01) && (texture & 0x0F);
 
         if (hasNorthWall) {
           dcx.fillStyle = "white";
@@ -924,8 +932,9 @@ function createTilesBufferFromImage(gl, image, width = 85, height = 128) {
   const mapData = context.getImageData(0,0,width,height);
   const mapTextureData = context.getImageData(width,0,width,height);
   const mapHeightData = context.getImageData(width + width,0,width,height);
-  state.map.data = mapData;
-  console.log(state.map.data);
+  state.map.tiles = mapData;
+  state.map.textures = mapTextureData;
+  console.log(state.map.tiles);
 
   const floorData = [];
   const northData = [];
