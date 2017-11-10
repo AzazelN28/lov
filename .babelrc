@@ -1,0 +1,22 @@
+{
+  "presets": [
+    ["env", {
+      "targets": {
+        "browsers": ["last 2 versions"]
+      }
+    }],
+    "stage-2"
+  ],
+
+  "plugins": [
+    ["module-resolver", {
+      "root": ["src"]
+    }]
+  ],
+
+  "env": {
+    "production": {
+      "plugins": ["groundskeeper-willie"]
+    }
+  }
+}

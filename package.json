@@ -4,7 +4,8 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "start": "webpack-dev-server --config webpack.config.js"
+    "start": "cross-env NODE_ENV=development webpack-dev-server",
+    "build": "cross-env NODE_ENV=production webpack"
   },
   "dependencies": {
     "gl-matrix": "^2.3.2"
@@ -13,7 +14,12 @@
     "babel-cli": "^6.24.1",
     "babel-core": "^6.25.0",
     "babel-loader": "^7.1.0",
+    "babel-plugin-groundskeeper-willie": "^1.3.2",
+    "babel-plugin-module-resolver": "^3.0.0",
+    "babel-preset-env": "^1.6.1",
     "babel-preset-latest": "^6.24.1",
+    "babel-preset-stage-2": "^6.24.1",
+    "cross-env": "^5.1.1",
     "css-loader": "^0.28.4",
     "extract-text-webpack-plugin": "^2.1.2",
     "html-webpack-plugin": "^2.29.0",
@@ -22,7 +28,7 @@
     "shader-loader": "^1.3.0",
     "stylus": "^0.54.5",
     "stylus-loader": "^3.0.1",
-    "webpack": "^3.0.0",
+    "webpack": "^3.8.1",
     "webpack-dev-server": "^2.5.0"
   }
 }

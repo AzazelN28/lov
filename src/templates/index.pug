@@ -3,6 +3,12 @@ html
   head
     meta(charset="utf-8")
     title=htmlWebpackPlugin.options.title
+    script(async,src="https://www.googletagmanager.com/gtag/js?id=UA-109402921-1")
+    script.
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-109402921-1');
   body
     canvas#game
     canvas#debug
