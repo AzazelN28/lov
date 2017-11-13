@@ -23,6 +23,9 @@ const plugins = (() => {
     }),
     new ExtractTextPlugin({
       filename: "index.css"
+    }),
+    new webpack.DefinePlugin({
+      "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV)
     })
   ];
 

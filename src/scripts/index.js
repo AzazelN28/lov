@@ -517,6 +517,9 @@ function update() {
 
       // TODO: Hacer que caminen de forma coherente.
       if (entity.ai && entity.ai.state === "walking") {
+
+        // FIXME: Esto es mierda pura, cambiar la manera
+        // en la que se comportan los personajes que caminan.
         if (Date.now() - entity.frameTime > 250) {
           entity.frame = (entity.frame + 1) % 3;
           entity.frameTime = Date.now();
@@ -526,11 +529,14 @@ function update() {
         vec3.set(entity.velocity, 0, 0, -1);
         vec3.rotateY(entity.velocity, entity.velocity, VEC3_EMPTY, entity.rotation);
 
+        // FIXME: Puro bullshit
         vec3.add(entity.nextPosition, entity.position, entity.velocity);
         for (let i = 0; i < 30; i++) {
           vec3.add(entity.nextPosition, entity.nextPosition, entity.velocity);
         }
 
+        // FIXME: La manera en al que se detectan las colisiones
+        // me producen arcadas.
         entity.nextX = getTileCoordinate(entity.nextPosition[0]);
         entity.nextY = getTileCoordinate(entity.nextPosition[2]);
 
@@ -575,6 +581,28 @@ function update() {
       }
     }
   }
+
+}
+
+function renderProduction() {
+
+  const s = 24;
+  const lh = s + s * 0.25;
+  let l = dcx.canvas.height / lh;
+  dcx.clearRect(0, 0, dcx.canvas.width, dcx.canvas.height);
+  dcx.font = `${s}px monospace`;
+  dcx.textAlign = "left";
+  dcx.textBaseline = "bottom";
+  dcx.shadowOffsetX = 2;
+  dcx.shadowOffsetY = 2;
+  dcx.shadowBlur = 0;
+  dcx.shadowColor = "black";
+  dcx.fillStyle = "yellow";
+  dcx.fillText("There are a lot of bugs, I hope they doesn't ruin your visit to this nice citadel", 0, l-- * lh);
+  dcx.fillStyle = "white";
+  dcx.fillText("If you want to fly then press Tab", 0, l-- * lh);
+  dcx.fillText("To move use your mouse and the keys A, W, S and D", 0, l-- * lh);
+  dcx.fillText("¡Welcome to Mittledorf!", 0, l-- * lh);
 
 }
 
@@ -684,7 +712,11 @@ function renderDebug() {
  */
 function render() {
 
-  renderDebug();
+  if (process.env.NODE_ENV === "development") {
+    renderDebug();
+  } else {
+    renderProduction();
+  }
 
   const gl = state.context;
   gl.viewport(0,0,gl.canvas.width,gl.canvas.height);
