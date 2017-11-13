@@ -253,10 +253,14 @@ function getDataOffset(x,y,width) {
   return ((y * width) + x) * 4;
 }
 
+function getTileCoordinate(position) {
+  return Math.floor((-position + 32) / 64);
+}
+
 function getTileCoordinates(tile, position) {
-  tile[0] = Math.floor((-position[0] + 32) / 64);
-  tile[1] = Math.floor((-position[1] + 32) / 64);
-  tile[2] = Math.floor((-position[2] + 32) / 64);
+  tile[0] = getTileCoordinate(position[0]);
+  tile[1] = getTileCoordinate(position[1]);
+  tile[2] = getTileCoordinate(position[2]);
   return tile;
 }
 
@@ -501,6 +505,7 @@ function update() {
       } else {
         entity.angleIndex = -Math.ceil(entity.angle / anglePerSide);
       }
+
       state.shortestArc = entity.angleIndex;
       if (entity.angleIndex < 0) {
         entity.uv[0] = CHARS_W * -entity.angleIndex;
@@ -510,18 +515,63 @@ function update() {
         entity.uv[2] = CHARS_W;
       }
 
+      // TODO: Hacer que caminen de forma coherente.
       if (entity.ai && entity.ai.state === "walking") {
-        vec3.set(entity.velocity, 0,0,-1);
+        if (Date.now() - entity.frameTime > 250) {
+          entity.frame = (entity.frame + 1) % 3;
+          entity.frameTime = Date.now();
+        }
+        entity.uv[0] += CHARS_W * 5 * entity.frame;
+
+        vec3.set(entity.velocity, 0, 0, -1);
         vec3.rotateY(entity.velocity, entity.velocity, VEC3_EMPTY, entity.rotation);
-        vec3.add(entity.position, entity.position, entity.velocity);
-        entity.x = -entity.position[0] / 64;
-        entity.y = -entity.position[2] / 64;
+
+        vec3.add(entity.nextPosition, entity.position, entity.velocity);
+        for (let i = 0; i < 30; i++) {
+          vec3.add(entity.nextPosition, entity.nextPosition, entity.velocity);
+        }
+
+        entity.nextX = getTileCoordinate(entity.nextPosition[0]);
+        entity.nextY = getTileCoordinate(entity.nextPosition[2]);
+
+        entity.x = getTileCoordinate(entity.position[0]);
+        entity.y = getTileCoordinate(entity.position[2]);
+
+        const offset = getDataOffset(entity.x, entity.y, state.map.tiles.width);
+        const tile = state.map.tiles.data[offset];
+        if (entity.nextX !== entity.x) {
+          if (collidesWithX(entity.nextX, entity.nextY, entity.x, entity.y)) {
+            if (Math.random() < 0.5) {
+              entity.rotation += entity.ai.preferenceToTurn * Math.PI * 0.5;
+            } else {
+              entity.rotation -= entity.ai.preferenceToTurn * Math.PI * 0.5;
+            }
+            entity.ai.time = Date.now();
+            entity.ai.timeToTurn = 1000 + Math.round(Math.random() * 5) * 1000;
+          }
+        }
+
+        if (entity.nextY !== entity.y) {
+          if (collidesWithY(entity.nextX, entity.nextY, entity.x, entity.y)) {
+            if (Math.random() < 0.5) {
+              entity.rotation += entity.ai.preferenceToTurn * Math.PI * 0.5;
+            } else {
+              entity.rotation -= entity.ai.preferenceToTurn * Math.PI * 0.5;
+            }
+            entity.ai.time = Date.now();
+            entity.ai.timeToTurn = 1000 + Math.round(Math.random() * 5) * 1000;
+          }
+        }
 
         if (Date.now() - entity.ai.time > entity.ai.timeToTurn) {
           entity.rotation += entity.ai.preferenceToTurn * Math.PI * 0.5;
           entity.ai.time = Date.now();
           entity.ai.timeToTurn = 1000 + Math.round(Math.random() * 5) * 1000;
         }
+
+        vec3.add(entity.position, entity.position, entity.velocity);
+
+
       }
     }
   }
@@ -1039,7 +1089,11 @@ function createCharacters() {
       type: "character",
       kind,
       x, y,
+      frame: 0,
+      frameTime: Date.now(),
+      nextX: x, nextY: y,
       position: vec3.fromValues(-x * 64, 0, -y * 64),
+      nextPosition: vec3.fromValues(-x * 64, 0, -y * 64),
       velocity: vec3.fromValues(0,0,-1),
       rotation: Math.round((Math.random() - 0.5) * 2) * Math.PI,
       transform: {
