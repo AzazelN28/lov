@@ -9,6 +9,9 @@ const debug = document.querySelector("canvas#debug");
 const context = canvas.getContext("webgl2");
 const dcx = debug.getContext("2d");
 
+const CHARS_W = 64 / 1024;
+const CHARS_H = 64 / 640;
+
 const billboardTexture = (function() {
   const t = document.createElement("canvas");
   t.width = 64;
@@ -34,6 +37,29 @@ const defaultTexture = (function() {
   cx.fillRect(32,32,32,32);
   return t;
 })();
+
+function keepIt(angle) {
+  if (angle < 0) {
+    while (angle < -Math.PI * 2) {
+      angle += Math.PI * 2;
+    }
+  } else {
+    while (angle > Math.PI * 2) {
+      angle -= Math.PI * 2;
+    }
+  }
+  return angle;
+}
+
+function shortestArc(a, b) {
+  if (Math.abs(b - a) < Math.PI) {
+    return b - a;
+  }
+  if (b > a) {
+    return b - a - Math.PI * 2;
+  }
+  return b - a + Math.PI * 2;
+}
 
 function createImage(url) {
   const image = new Image();
@@ -343,6 +369,8 @@ function update() {
     mat4.translate(state.camera.transform.model, state.camera.transform.model, state.camera.position);
     mat4.multiply(state.camera.transform.model, state.camera.transform.model, state.camera.transform.rotation);
 
+    getTileCoordinates(state.camera.collision.tiles.current, state.camera.position);
+
   } else if (state.mode === Mode.PLAYER) {
     // TODO: This is the "Free Camera Model" of movement, we should implement another different
     // camera model for the player
@@ -452,11 +480,34 @@ function update() {
 
   mat4.multiply(state.camera.transform.projectionView, state.camera.transform.projection, state.camera.transform.view);
 
-  for (let entity of state.entities) {
+  for (const entity of state.entities) {
     mat4.identity(entity.transform.model);
     mat4.translate(entity.transform.model, entity.transform.model, entity.position);
     mat4.multiply(entity.transform.model, entity.transform.model, state.camera.transform.rotation);
     mat4.multiply(entity.transform.projectionViewModel, state.camera.transform.projectionView, entity.transform.model);
+
+    // TODO: Necesito arreglar los casos en los que entity.angle
+    // es mayor que PI. Esto es un auténtico mojón.
+    if (entity.type === "character") {
+      const anglePerSide = Math.PI / 4;
+      const halfAnglePerSide = Math.PI / 8;
+      entity.angle = shortestArc(entity.rotation, keepIt(state.camera.rotation[1]) + halfAnglePerSide);
+      state.angle = entity.angle * 180 / Math.PI;
+      state.anglePerSide = anglePerSide * 180 / Math.PI;
+      if (entity.angle < 0) {
+        entity.angleIndex = -Math.floor(entity.angle / anglePerSide);
+      } else {
+        entity.angleIndex = -Math.ceil(entity.angle / anglePerSide);
+      }
+      state.shortestArc = entity.angleIndex;
+      if (entity.angleIndex < 0) {
+        entity.uv[0] = CHARS_W * -entity.angleIndex;
+        entity.uv[2] = -CHARS_W;
+      } else {
+        entity.uv[0] = CHARS_W * entity.angleIndex;
+        entity.uv[2] = CHARS_W;
+      }
+    }
   }
 
 }
@@ -482,15 +533,21 @@ function renderDebug() {
   const ctx = cx - (V * S);
   const cty = cy - (V * S);
 
+  let l = 0;
+
   dcx.clearRect(0,0,dcx.canvas.width,dcx.canvas.height);
   dcx.font = "16px monospace";
   dcx.textAlign = "left";
   dcx.textBaseline = "top";
   dcx.fillStyle = "white";
-  dcx.fillText(`${px.toFixed(2)},${py.toFixed(2)},${pz.toFixed(2)}`, 0, 0);
-  dcx.fillText(`${tx},${ty},${tz}`, 0, 16);
-  dcx.fillText(`Mode: ${state.mode === Mode.GOD ? "God" : "Player"} (To change between modes use Tab key)`, 0, 32);
-  dcx.fillText("Use AWSD to move", 0, 48);
+  dcx.fillText(`${px.toFixed(2)},${py.toFixed(2)},${pz.toFixed(2)}`, 0, l++ * 16);
+  dcx.fillText(`${tx},${ty},${tz}`, 0, l++ * 16);
+  dcx.fillText(`${state.camera.transform.rotation[0].toFixed(2)},${state.camera.transform.rotation[1].toFixed(2)},${state.camera.transform.rotation[2].toFixed(2)}, ${state.camera.rotation[0].toFixed(2)}, ${state.camera.rotation[1].toFixed(2)}`, 0, l++ * 16);
+  dcx.fillText(`Mode: ${state.mode === Mode.GOD ? "God" : "Player"} (To change between modes use Tab key)`, 0, l++ * 16);
+  dcx.fillText("Use AWSD to move", 0, l++ * 16);
+  dcx.fillText(`angle: ${state.angle}`, 0, l++ * 16);
+  dcx.fillText(`anglePerSide: ${state.anglePerSide}`, 0, l++ * 16);
+  dcx.fillText(`Shortest arc: ${state.shortestArc}`, 0, l++ * 16);
 
   if (state.map.tiles) {
     const rsx = tx - V;
@@ -531,6 +588,22 @@ function renderDebug() {
           dcx.fillStyle = "green";
           dcx.fillRect(tcx, tcy, S, S);
         }
+      }
+    }
+
+    for (const entity of state.entities) {
+      if (entity.x > sx
+       && entity.y > sy
+       && entity.x < ex
+       && entity.y < ey) {
+        const tcx = ctx + ((entity.x - rsx) * S);
+        const tcy = cty + ((entity.y - rsy) * S);
+        if (entity.type === "character") {
+          dcx.fillStyle = "blue";
+        } else if (entity.type === "static") {
+          dcx.fillStyle = "cyan";
+        }
+        dcx.fillRect(tcx, tcy, S, S);
       }
     }
   }
@@ -780,6 +853,8 @@ function start() {
   state.textures.billboard = createTexture(gl, billboardTexture);
   state.textures.base = createTexture(gl, state.map.textures);
   state.textures.sprites = createTexture(gl, state.map.sprites);
+  state.textures.chars = createTexture(gl, state.map.chars);
+
 
   const floor = [
     -32.0, 32.0, -32.0,  0 / Texture.WIDTH, 128 / Texture.HEIGHT,
@@ -897,7 +972,72 @@ function start() {
   window.addEventListener("mouseup", mouse);
   window.addEventListener("click", mouse);
 
+  createCharacters();
+
   requestFrame();
+}
+
+function createCharacters() {
+
+  state.entities.push({
+    type: "character",
+    kind: 0,
+    x: 80,
+    y: 56,
+    position: vec3.fromValues(-80 * 64, 0, -56 * 64),
+    rotation: 0,
+    transform: {
+      model: mat4.create(),
+      projectionViewModel: mat4.create(),
+    },
+    uv: vec4.fromValues(0, 0, CHARS_W, CHARS_H),
+    texture: state.textures.chars,
+    color: vec3.fromValues(1.0, 1.0, 1.0)
+  });
+
+  for (let i = 0; i < 200; i++) {
+    let x, y;
+
+    // TODO: Esta es una manera muy burda de asegurarse de que dos entidades
+    // no coinciden en el mismo sitio, tengo que buscar una alternativa mejor.
+    do {
+      x = Math.round(Math.random() * 80);
+      y = 4 + Math.round(Math.random() * 120);
+    } while (state.entities.find((entity) => entity.position[0] === -x * 64 && entity.position[2] === -y * 64));
+
+    // Seleccionamos el tipo de personaje. Todos los personajes
+    // tienen la misma probabilidad de aparecer.
+    //
+    // 0 - Mujer
+    // 1 - Monje
+    // 2 - Vampiro
+    // 3 - Jester
+    // 4 - Sacerdotisa
+    // 5 - Hombre
+    // 6 - Soldado
+    // 7 - Hombre lobo
+    // 8 - Enano
+    const kind = Math.round(Math.random() * 8);
+
+    state.entities.push({
+      type: "character",
+      kind,
+      x, y,
+      position: vec3.fromValues(-x * 64, 0, -y * 64),
+      rotation: (Math.random() - 0.5) * Math.PI * 2,
+      transform: {
+        model: mat4.create(),
+        projectionViewModel: mat4.create(),
+      },
+      ai: {
+        state: "walking"
+      },
+      uv: vec4.fromValues(0, CHARS_H * kind, CHARS_W, CHARS_H),
+      texture: state.textures.chars,
+      color: vec3.fromValues(1.0, 1.0, 1.0)
+    });
+  }
+
 }
 
 /**
@@ -970,6 +1110,7 @@ function createTilesBufferFromImage(gl, image, width = 85, height = 128) {
         const spriteY = (sprite - 2) * SH;
         state.entities.push({
           type: "static",
+          x, y,
           position: vec3.fromValues(-x * 64,0,-y * 64),
           rotation: 0,
           transform: {
@@ -1191,15 +1332,18 @@ Promise.all([
   "assets/ground.png",
   "assets/foreground.png",
   "assets/textures.png",
-  "assets/sprites.png"
-].map(loadImage)).then(([underground,ground,foreground,textures,sprites]) => {
-  console.log(underground,ground,foreground,textures,sprites);
+  "assets/sprites.png",
+  "assets/chars.png"
+].map(loadImage)).then(([underground,ground,foreground,textures,sprites,chars]) => {
+  console.log(underground,ground,foreground,textures,sprites,chars);
   state.map = {
     underground,
     ground,
     foreground,
     textures,
-    sprites
+    sprites,
+    chars
   };
+
   start();
 });
