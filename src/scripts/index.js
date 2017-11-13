@@ -9,6 +9,8 @@ const debug = document.querySelector("canvas#debug");
 const context = canvas.getContext("webgl2");
 const dcx = debug.getContext("2d");
 
+const VEC3_EMPTY = vec3.fromValues(0, 0, 0);
+
 const CHARS_W = 64 / 1024;
 const CHARS_H = 64 / 640;
 
@@ -491,7 +493,7 @@ function update() {
     if (entity.type === "character") {
       const anglePerSide = Math.PI / 4;
       const halfAnglePerSide = Math.PI / 8;
-      entity.angle = shortestArc(entity.rotation, keepIt(state.camera.rotation[1]) + halfAnglePerSide);
+      entity.angle = shortestArc(keepIt(entity.rotation), keepIt(state.camera.rotation[1]) + halfAnglePerSide);
       state.angle = entity.angle * 180 / Math.PI;
       state.anglePerSide = anglePerSide * 180 / Math.PI;
       if (entity.angle < 0) {
@@ -506,6 +508,20 @@ function update() {
       } else {
         entity.uv[0] = CHARS_W * entity.angleIndex;
         entity.uv[2] = CHARS_W;
+      }
+
+      if (entity.ai && entity.ai.state === "walking") {
+        vec3.set(entity.velocity, 0,0,-1);
+        vec3.rotateY(entity.velocity, entity.velocity, VEC3_EMPTY, entity.rotation);
+        vec3.add(entity.position, entity.position, entity.velocity);
+        entity.x = -entity.position[0] / 64;
+        entity.y = -entity.position[2] / 64;
+
+        if (Date.now() - entity.ai.time > entity.ai.timeToTurn) {
+          entity.rotation += entity.ai.preferenceToTurn * Math.PI * 0.5;
+          entity.ai.time = Date.now();
+          entity.ai.timeToTurn = 1000 + Math.round(Math.random() * 5) * 1000;
+        }
       }
     }
   }
@@ -1024,13 +1040,17 @@ function createCharacters() {
       kind,
       x, y,
       position: vec3.fromValues(-x * 64, 0, -y * 64),
-      rotation: (Math.random() - 0.5) * Math.PI * 2,
+      velocity: vec3.fromValues(0,0,-1),
+      rotation: Math.round((Math.random() - 0.5) * 2) * Math.PI,
       transform: {
         model: mat4.create(),
         projectionViewModel: mat4.create(),
       },
       ai: {
-        state: "walking"
+        state: "walking",
+        time: Date.now(),
+        preferenceToTurn: Math.random() < 0.5 ? -1 : 1,
+        timeToTurn: 1000 + Math.round(Math.random() * 5) * 1000
       },
       uv: vec4.fromValues(0, CHARS_H * kind, CHARS_W, CHARS_H),
       texture: state.textures.chars,
