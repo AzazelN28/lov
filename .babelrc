@@ -1,16 +1,15 @@
 {
   "presets": [
-    ["env", {
+    ["@babel/preset-env", {
       "targets": {
-        "browsers": ["last 2 versions"]
+        "browser": "last 2 versions"
       }
-    }],
-    "stage-2"
+    }]
   ],
 
   "plugins": [
-    ["module-resolver", {
-      "root": ["src"]
+    ["@babel/plugin-transform-runtime", {
+      "regenerator": true
     }]
   ],
 

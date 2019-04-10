@@ -1,8 +1,8 @@
 import {vec2,vec3,vec4,mat4} from "gl-matrix";
-import defaultVertexShader from "../shaders/texture-instanced.v.glsl";
-import defaultFragmentShader from "../shaders/texture-instanced.f.glsl";
-import billboardVertexShader from "../shaders/billboard.v.glsl";
-import billboardFragmentShader from "../shaders/billboard.f.glsl";
+import defaultVertexShader from "./shaders/texture-instanced.v.glsl";
+import defaultFragmentShader from "./shaders/texture-instanced.f.glsl";
+import billboardVertexShader from "./shaders/billboard.v.glsl";
+import billboardFragmentShader from "./shaders/billboard.f.glsl";
 
 const canvas = document.querySelector("canvas#game");
 const debug = document.querySelector("canvas#debug");
@@ -80,7 +80,7 @@ function loadImage(url) {
       if (e.type === "load") {
         return resolve(image);
       } else {
-        return reject(e.type);
+        return reject(e);
       }
     }
     const image = new Image();
@@ -590,7 +590,8 @@ function renderProduction() {
   const lh = s + s * 0.25;
   let l = dcx.canvas.height / lh;
   dcx.clearRect(0, 0, dcx.canvas.width, dcx.canvas.height);
-  dcx.font = `${s}px monospace`;
+  //dcx.font = `${s}px monospace`;
+  dcx.font = `${s}px UnifrakturCook`;
   dcx.textAlign = "left";
   dcx.textBaseline = "bottom";
   dcx.shadowOffsetX = 2;
@@ -630,7 +631,8 @@ function renderDebug() {
   let l = 0;
 
   dcx.clearRect(0,0,dcx.canvas.width,dcx.canvas.height);
-  dcx.font = "16px monospace";
+  dcx.font = '16px UnifrakturCook';
+  //dcx.font = "16px monospace";
   dcx.textAlign = "left";
   dcx.textBaseline = "top";
   dcx.fillStyle = "white";
@@ -1440,7 +1442,8 @@ Promise.all([
   "assets/textures.png",
   "assets/sprites.png",
   "assets/chars.png"
-].map(loadImage)).then(([underground,ground,foreground,textures,sprites,chars]) => {
+].map(loadImage)).then((data) => {
+  const [underground,ground,foreground,textures,sprites,chars] = data
   console.log(underground,ground,foreground,textures,sprites,chars);
   state.map = {
     underground,
