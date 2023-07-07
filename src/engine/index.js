@@ -19,8 +19,31 @@ import Loop from './core/Loop.js'
 
 const VEC3_EMPTY = vec3.fromValues(0, 0, 0)
 
-const CHARS_W = 64 / 1024
-const CHARS_H = 64 / 640
+const DEFAULT_SIZE = 64
+const DEFAULT_HALF_SIZE = DEFAULT_SIZE / 2
+
+const TILE_SIZE = DEFAULT_SIZE
+const TILE_HALF_SIZE = TILE_SIZE / 2
+
+const MAX_LOOK_ANGLE = 0.25
+
+const NUM_CHARACTERS = 200
+
+const MAP_WIDTH = 85
+const MAP_HEIGHT = 128
+
+const CHARS_W = DEFAULT_SIZE / 1024
+const CHARS_H = DEFAULT_SIZE / 640
+
+class Transform {
+  constructor(x, y, z) {
+    this.position = vec3.fromValues(x, y, z)
+    this.rotation = 0
+    this.scale = vec3.fromValues(1, 1, 1)
+    this.model = mat4.create()
+    this.projectionViewModel = mat4.create()
+  }
+}
 
 /**
  * Is called when the screen is resized (or when a canvas is collapsed).
@@ -44,11 +67,6 @@ function mouse(e) {
   if (e.type === 'click') {
     if (e.target === state.canvas) {
       state.canvas.requestPointerLock()
-    }
-  } else if (e.type === 'mousemove') {
-    if (document.pointerLockElement === state.canvas) {
-      state.camera.rotation[0] += e.movementY / state.canvas.height
-      state.camera.rotation[1] += -e.movementX / state.canvas.width
     }
   }
 }
@@ -676,7 +694,10 @@ function render() {
     gl.getAttribLocation(state.programs.default, 'a_texoffset'),
     1
   )
-
+  gl.uniform3fv(
+    gl.getUniformLocation(state.programs.default, 'u_color'),
+    state.colors.north
+  )
   gl.drawArraysInstanced(
     gl.TRIANGLE_FAN,
     0,
@@ -743,7 +764,10 @@ function render() {
     gl.getAttribLocation(state.programs.default, 'a_texoffset'),
     1
   )
-
+  gl.uniform3fv(
+    gl.getUniformLocation(state.programs.default, 'u_color'),
+    state.colors.south
+  )
   gl.drawArraysInstanced(
     gl.TRIANGLE_FAN,
     0,
@@ -810,7 +834,10 @@ function render() {
     gl.getAttribLocation(state.programs.default, 'a_texoffset'),
     1
   )
-
+  gl.uniform3fv(
+    gl.getUniformLocation(state.programs.default, 'u_color'),
+    state.colors.west
+  )
   gl.drawArraysInstanced(
     gl.TRIANGLE_FAN,
     0,
@@ -877,7 +904,10 @@ function render() {
     gl.getAttribLocation(state.programs.default, 'a_texoffset'),
     1
   )
-
+  gl.uniform3fv(
+    gl.getUniformLocation(state.programs.default, 'u_color'),
+    state.colors.east
+  )
   gl.drawArraysInstanced(
     gl.TRIANGLE_FAN,
     0,
@@ -956,8 +986,15 @@ function render() {
 function input(t) {
   if (document.pointerLockElement === state.canvas) {
     state.camera.rotation[0] += state.input.mouse.coords.relative.y / state.canvas.height
+    if (state.camera.rotation[0] < Math.PI * -MAX_LOOK_ANGLE)
+      state.camera.rotation[0] = Math.PI * -MAX_LOOK_ANGLE
+
+    if (state.camera.rotation[0] > Math.PI * MAX_LOOK_ANGLE)
+      state.camera.rotation[0] = Math.PI * MAX_LOOK_ANGLE
+
     state.camera.rotation[1] += -state.input.mouse.coords.relative.x / state.canvas.width
   }
+  state.input.update()
 }
 
 const loop = new Loop([
@@ -985,72 +1022,72 @@ function start() {
   state.textures.chars = createTexture(gl, state.map.chars)
 
   const floor = [
-    -32.0,
-    32.0,
-    -32.0,
+    -TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
+    -TILE_HALF_SIZE,
     0 / Texture.WIDTH,
     128 / Texture.HEIGHT,
-    -32.0,
-    32.0,
-    32.0,
+    -TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
     64 / Texture.WIDTH,
     128 / Texture.HEIGHT,
-    32.0,
-    32.0,
-    32.0,
+    TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
     64 / Texture.WIDTH,
     192 / Texture.HEIGHT,
-    32.0,
-    32.0,
-    -32.0,
+    TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
+    -TILE_HALF_SIZE,
     0 / Texture.WIDTH,
     192 / Texture.HEIGHT,
   ]
 
   // IMPORTANT! This are verified coordinates.
   const north = [
-    -32.0,
-    -32.0,
-    32.0,
+    -TILE_HALF_SIZE,
+    -TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
     0 / Texture.WIDTH,
     0 / Texture.HEIGHT,
-    -32.0,
-    32.0,
-    32.0,
+    -TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
     0 / Texture.WIDTH,
     64 / Texture.HEIGHT,
-    32.0,
-    32.0,
-    32.0,
+    TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
     64 / Texture.WIDTH,
     64 / Texture.HEIGHT,
-    32.0,
-    -32.0,
-    32.0,
+    TILE_HALF_SIZE,
+    -TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
     64 / Texture.WIDTH,
     0 / Texture.HEIGHT,
   ]
 
   // IMPORTANT! This are verified coordinates.
   const south = [
-    -32.0,
-    -32.0,
-    32.0,
+    -TILE_HALF_SIZE,
+    -TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
     0 / Texture.WIDTH,
     0 / Texture.HEIGHT,
-    32.0,
-    -32.0,
-    32.0,
+    TILE_HALF_SIZE,
+    -TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
     64 / Texture.WIDTH,
     0 / Texture.HEIGHT,
-    32.0,
-    32.0,
-    32.0,
+    TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
     64 / Texture.WIDTH,
     64 / Texture.HEIGHT,
-    -32.0,
-    32.0,
-    32.0,
+    -TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
     0 / Texture.WIDTH,
     64 / Texture.HEIGHT,
   ]
@@ -1063,24 +1100,24 @@ function start() {
 
   // IMPORTANT! This are verified coordinates.
   const east = [
-    32.0,
-    -32.0,
-    -32.0,
+    TILE_HALF_SIZE,
+    -TILE_HALF_SIZE,
+    -TILE_HALF_SIZE,
     0 / Texture.WIDTH,
     0 / Texture.HEIGHT,
-    32.0,
-    32.0,
-    -32.0,
+    TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
+    -TILE_HALF_SIZE,
     0 / Texture.WIDTH,
     64 / Texture.HEIGHT,
-    32.0,
-    32.0,
-    32.0,
+    TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
     64 / Texture.WIDTH,
     64 / Texture.HEIGHT,
-    32.0,
-    -32.0,
-    32.0,
+    TILE_HALF_SIZE,
+    -TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
     64 / Texture.WIDTH,
     0 / Texture.HEIGHT,
   ]
@@ -1093,24 +1130,24 @@ function start() {
 
   // IMPORTANT! This are verified coordinates.
   const west = [
-    32.0,
-    -32.0,
-    -32.0,
+    TILE_HALF_SIZE,
+    -TILE_HALF_SIZE,
+    -TILE_HALF_SIZE,
     0 / Texture.WIDTH,
     0 / Texture.HEIGHT,
-    32.0,
-    -32.0,
-    32.0,
+    TILE_HALF_SIZE,
+    -TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
     64 / Texture.WIDTH,
     0 / Texture.HEIGHT,
-    32.0,
-    32.0,
-    32.0,
+    TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
     64 / Texture.WIDTH,
     64 / Texture.HEIGHT,
-    32.0,
-    32.0,
-    -32.0,
+    TILE_HALF_SIZE,
+    TILE_HALF_SIZE,
+    -TILE_HALF_SIZE,
     0 / Texture.WIDTH,
     64 / Texture.HEIGHT,
   ]
@@ -1154,10 +1191,10 @@ function start() {
   //state.entities = [];
 
   const billboard = [
-    -32.0, -32.0, 0.0, 0.0, 0.0,
-     32.0, -32.0, 0.0, 1.0, 0.0,
-     32.0,  32.0, 0.0, 1.0, 1.0,
-    -32.0,  32.0, 0.0, 0.0, 1.0,
+    -TILE_HALF_SIZE, -TILE_HALF_SIZE, 0.0, 0.0, 0.0,
+     TILE_HALF_SIZE, -TILE_HALF_SIZE, 0.0, 1.0, 0.0,
+     TILE_HALF_SIZE,  TILE_HALF_SIZE, 0.0, 1.0, 1.0,
+    -TILE_HALF_SIZE,  TILE_HALF_SIZE, 0.0, 0.0, 1.0,
   ]
 
   const billboardTypedArray = new Float32Array(billboard)
@@ -1168,9 +1205,10 @@ function start() {
   }
 
   state.colors.default = new Float32Array([1.0, 1.0, 1.0])
-
-  window.addEventListener('resize', resize)
-  window.dispatchEvent(new Event('resize'))
+  state.colors.north = new Float32Array([1.0, 1.0, 1.0])
+  state.colors.south = new Float32Array([1.0, 1.0, 1.0])
+  state.colors.west = new Float32Array([0.75, 0.7, 0.5])
+  state.colors.east = new Float32Array([0.75, 0.7, 0.5])
 
   state.input.start()
   state.input.keyboard.on('Tab', () => {
@@ -1189,7 +1227,12 @@ function start() {
   loop.start()
 }
 
+function getCharacterKind() {
+  return Math.round(Math.random() * 8)
+}
+
 function createCharacters() {
+  /*
   state.entities.push({
     type: 'character',
     kind: 0,
@@ -1205,8 +1248,9 @@ function createCharacters() {
     texture: state.textures.chars,
     color: vec3.fromValues(1.0, 1.0, 1.0),
   })
+  */
 
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < NUM_CHARACTERS; i++) {
     let x, y
 
     // TODO: Esta es una manera muy burda de asegurarse de que dos entidades
@@ -1217,7 +1261,7 @@ function createCharacters() {
     } while (
       state.entities.find(
         (entity) =>
-          entity.position[0] === -x * 64 && entity.position[2] === -y * 64
+          entity.position[0] === -x * TILE_SIZE && entity.position[2] === -y * TILE_SIZE
       )
     )
 
@@ -1233,7 +1277,7 @@ function createCharacters() {
     // 6 - Soldado
     // 7 - Hombre lobo
     // 8 - Enano
-    const kind = Math.round(Math.random() * 8)
+    const kind = getCharacterKind()
 
     state.entities.push({
       type: 'character',
@@ -1244,14 +1288,11 @@ function createCharacters() {
       frameTime: Date.now(),
       nextX: x,
       nextY: y,
-      position: vec3.fromValues(-x * 64, 0, -y * 64),
-      nextPosition: vec3.fromValues(-x * 64, 0, -y * 64),
+      position: vec3.fromValues(-x * TILE_SIZE, 0, -y * TILE_SIZE),
+      nextPosition: vec3.fromValues(-x * TILE_SIZE, 0, -y * TILE_SIZE),
       velocity: vec3.fromValues(0, 0, -1),
       rotation: Math.round((Math.random() - 0.5) * 2) * Math.PI,
-      transform: {
-        model: mat4.create(),
-        projectionViewModel: mat4.create(),
-      },
+      transform: new Transform(-x * TILE_SIZE, 0, -y * TILE_SIZE),
       ai: {
         state: 'walking',
         time: Date.now(),
@@ -1295,16 +1336,36 @@ function getOutsideTexture(texture) {
   return texture & 0x0f
 }
 
+function createTilesBuffer(gl, data, textureData) {
+  const typedArray = new Float32Array(data)
+
+  const textureTypedArray = new Float32Array(textureData)
+  const textureBuffer = createBuffer(gl, textureTypedArray)
+
+  return {
+    offset: {
+      data: data,
+      typedArray: typedArray,
+      buffer: createBuffer(gl, typedArray),
+    },
+    texOffset: {
+      data: textureData,
+      typedArray: textureTypedArray,
+      buffer: textureBuffer,
+    },
+  }
+}
+
 /**
  * Parsea el mapa y crea los paneles necesarios para definir
  * la forma del mapa.
  *
  * @param {WebGLContext} gl
  * @param {Image} image
- * @param {Number} [width=85]
- * @param {Number} [height=128]
+ * @param {Number} [width=MAP_WIDTH]
+ * @param {Number} [height=MAP_HEIGHT]
  */
-function createTilesBufferFromImage(gl, image, width = 85, height = 128) {
+function createTilesBufferFromImage(gl, image, width = MAP_WIDTH, height = MAP_HEIGHT) {
   const context = convertImageToContext2D(image)
   const mapData = context.getImageData(0, 0, width, height)
   const mapTextureData = context.getImageData(width, 0, width, height)
@@ -1349,12 +1410,9 @@ function createTilesBufferFromImage(gl, image, width = 85, height = 128) {
           type: 'static',
           x,
           y,
-          position: vec3.fromValues(-x * 64, 0, -y * 64),
+          position: vec3.fromValues(-x * TILE_SIZE, 0, -y * TILE_SIZE),
           rotation: 0,
-          transform: {
-            model: mat4.create(),
-            projectionViewModel: mat4.create(),
-          },
+          transform: new Transform(-x * TILE_SIZE, 0, -y * TILE_SIZE),
           uv: vec4.fromValues(spriteX, spriteY, spriteW, spriteH),
           texture: state.textures.sprites,
           color: vec3.fromValues(1.0, 1.0, 1.0),
@@ -1396,13 +1454,13 @@ function createTilesBufferFromImage(gl, image, width = 85, height = 128) {
       const floorY = (isExterior(current) ? 0 : 0) * TH
       if ((current & 0x03) !== 2) {
         // Añadimos los datos del suelo.
-        floorData.push(-x * 64, 0, -y * 64)
+        floorData.push(-x * TILE_SIZE, 0, -y * TILE_SIZE)
         floorTextureData.push(floorX, floorY)
       }
 
       // TODO: Remove this comments to draw second floor
       if (!(current & 0x01) && (current & 0x03) !== 2) {
-        floorData.push(-x * 64, -64, -y * 64)
+        floorData.push(-x * TILE_SIZE, -TILE_SIZE, -y * TILE_SIZE)
         floorTextureData.push(floorX, floorY)
       }
 
@@ -1413,8 +1471,8 @@ function createTilesBufferFromImage(gl, image, width = 85, height = 128) {
           !(isExterior(current) && outside === 0) &&
           !(isInterior(current) && inside === 0 && !isExterior(up))
         ) {
-          northData.push(-x * 64, 0, -y * 64)
-          southData.push(-x * 64, 0, -y * 64)
+          northData.push(-x * TILE_SIZE, 0, -y * TILE_SIZE)
+          southData.push(-x * TILE_SIZE, 0, -y * TILE_SIZE)
           if (isExterior(current) && isInterior(up)) {
             northTextureData.push(tileIX, tileIY)
             southTextureData.push(tileOX, tileOY)
@@ -1432,8 +1490,8 @@ function createTilesBufferFromImage(gl, image, width = 85, height = 128) {
 
         // TODO: Investigate how this shit works.
         if (height & 0x01 || height & 0x02) {
-          northData.push(-x * 64, -64, -y * 64)
-          southData.push(-x * 64, -64, -y * 64)
+          northData.push(-x * TILE_SIZE, -TILE_SIZE, -y * TILE_SIZE)
+          southData.push(-x * TILE_SIZE, -TILE_SIZE, -y * TILE_SIZE)
           northTextureData.push(tileHX, tileHY)
           southTextureData.push(tileHX, tileHY)
         }
@@ -1444,8 +1502,8 @@ function createTilesBufferFromImage(gl, image, width = 85, height = 128) {
           !(isExterior(current) && outside === 0) &&
           !(isInterior(current) && inside === 0 && !isExterior(left))
         ) {
-          westData.push(-x * 64, 0, -y * 64)
-          eastData.push(-x * 64, 0, -y * 64)
+          westData.push(-x * TILE_SIZE, 0, -y * TILE_SIZE)
+          eastData.push(-x * TILE_SIZE, 0, -y * TILE_SIZE)
           if (isExterior(current) && isInterior(left)) {
             westTextureData.push(tileIX, tileIY)
             eastTextureData.push(tileOX, tileOY)
@@ -1462,8 +1520,8 @@ function createTilesBufferFromImage(gl, image, width = 85, height = 128) {
         }
 
         if (height & 0x01 || height & 0x02) {
-          westData.push(-x * 64, -64, -y * 64)
-          eastData.push(-x * 64, -64, -y * 64)
+          westData.push(-x * TILE_SIZE, -TILE_SIZE, -y * TILE_SIZE)
+          eastData.push(-x * TILE_SIZE, -TILE_SIZE, -y * TILE_SIZE)
           westTextureData.push(tileHX, tileHY)
           eastTextureData.push(tileHX, tileHY)
         }
@@ -1471,89 +1529,12 @@ function createTilesBufferFromImage(gl, image, width = 85, height = 128) {
     }
   }
 
-  const floorTypedArray = new Float32Array(floorData)
-
-  const northTypedArray = new Float32Array(northData)
-  const southTypedArray = new Float32Array(southData)
-  const westTypedArray = new Float32Array(westData)
-  const eastTypedArray = new Float32Array(eastData)
-
-  const floorTextureTypedArray = new Float32Array(floorTextureData)
-  const floorTextureBuffer = createBuffer(gl, floorTextureTypedArray)
-
-  const northTextureTypedArray = new Float32Array(northTextureData)
-  const northTextureBuffer = createBuffer(gl, northTextureTypedArray)
-
-  const southTextureTypedArray = new Float32Array(southTextureData)
-  const southTextureBuffer = createBuffer(gl, southTextureTypedArray)
-
-  const westTextureTypedArray = new Float32Array(westTextureData)
-  const westTextureBuffer = createBuffer(gl, westTextureTypedArray)
-
-  const eastTextureTypedArray = new Float32Array(eastTextureData)
-  const eastTextureBuffer = createBuffer(gl, eastTextureTypedArray)
-
   return {
-    floor: {
-      offset: {
-        data: floorData,
-        typedArray: floorTypedArray,
-        buffer: createBuffer(gl, floorTypedArray),
-      },
-      texOffset: {
-        data: floorTextureData,
-        typedArray: floorTextureTypedArray,
-        buffer: floorTextureBuffer,
-      },
-    },
-    north: {
-      offset: {
-        data: northData,
-        typedArray: northTypedArray,
-        buffer: createBuffer(gl, northTypedArray),
-      },
-      texOffset: {
-        data: northTextureData,
-        typedArray: northTextureTypedArray,
-        buffer: northTextureBuffer,
-      },
-    },
-    south: {
-      offset: {
-        data: southData,
-        typedArray: southTypedArray,
-        buffer: createBuffer(gl, southTypedArray),
-      },
-      texOffset: {
-        data: southTextureData,
-        typedArray: southTextureTypedArray,
-        buffer: southTextureBuffer,
-      },
-    },
-    west: {
-      offset: {
-        data: westData,
-        typedArray: westTypedArray,
-        buffer: createBuffer(gl, westTypedArray),
-      },
-      texOffset: {
-        data: westTextureData,
-        typedArray: westTextureTypedArray,
-        buffer: westTextureBuffer,
-      },
-    },
-    east: {
-      offset: {
-        data: eastData,
-        typedArray: eastTypedArray,
-        buffer: createBuffer(gl, eastTypedArray),
-      },
-      texOffset: {
-        data: eastTextureData,
-        typedArray: eastTextureTypedArray,
-        buffer: eastTextureBuffer,
-      },
-    },
+    floor: createTilesBuffer(gl, floorData, floorTextureData),
+    north: createTilesBuffer(gl, northData, northTextureData),
+    south: createTilesBuffer(gl, southData, southTextureData),
+    west: createTilesBuffer(gl, westData, westTextureData),
+    east: createTilesBuffer(gl, eastData, eastTextureData),
   }
 }
 

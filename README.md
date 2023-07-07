@@ -6,3 +6,15 @@ Excerpt from the [Wikipedia](https://en.wikipedia.org/wiki/Legends_of_Valour):
 
 ## Reverse engineering
 
+## To do
+
+- [ ] Pad textures/sprites/items
+- [ ] Add Day/Night cycle
+- [ ] Refactor Entities
+  - [ ] Add ECS architecture
+- [ ] Refactor Renderer
+- [ ] Refactor engine/index.js
+- [ ] Add Tasks/Scheduler
+- [ ] Add Inventory
+- [ ] Add Audio/Music
+- [ ] Add WebSockets server

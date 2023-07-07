@@ -1,4 +1,4 @@
-precision highp float;
+precision lowp float;
 
 uniform sampler2D u_sampler;
 uniform vec3 u_color;

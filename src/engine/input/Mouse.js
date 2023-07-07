@@ -31,6 +31,12 @@ export default class Mouse {
     return this.#coords
   }
 
+  update() {
+    if (!!document.pointerLockElement) {
+      this.#coords.update(0, 0, true)
+    }
+  }
+
   start() {
     this.#target.addEventListener('mousemove', this.#onMouse)
     this.#target.addEventListener('mousedown', this.#onMouse)

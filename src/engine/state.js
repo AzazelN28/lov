@@ -7,6 +7,10 @@ export const state = {
   context: null,
   colors: {
     default: null,
+    north: null,
+    south: null,
+    west: null,
+    east: null,
   },
   textures: {
     default: null,

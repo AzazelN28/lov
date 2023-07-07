@@ -42,6 +42,8 @@ export default class Keyboard {
     return !this.isPressed(key)
   }
 
+  update() {}
+
   start() {
     this.#target.addEventListener('keydown', this.#onKey)
     this.#target.addEventListener('keyup', this.#onKey)

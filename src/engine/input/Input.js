@@ -47,7 +47,7 @@ export default class Input {
   }
 
   update() {
-    this.#gamepads.update()
+    this.#devices.forEach((device) => device.update())
   }
 
   start() {

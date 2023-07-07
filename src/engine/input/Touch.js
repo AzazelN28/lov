@@ -23,6 +23,10 @@ export default class Pointer {
     return this.#coords
   }
 
+  update() {
+
+  }
+
   start() {
     if (navigator.maxTouchPoints > 0) {
       this.#coords = Array.from(new Array(navigator.maxTouchPoints), () => new Coordinates())

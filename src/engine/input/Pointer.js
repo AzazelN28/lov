@@ -34,6 +34,10 @@ export default class Pointer {
     return this.#coords
   }
 
+  update() {
+
+  }
+
   start() {
     this.#target.addEventListener('pointermove', this.#onPointer)
     this.#target.addEventListener('pointerdown', this.#onPointer)
