@@ -35,6 +35,35 @@ export function createProgram(gl, vertexShader, fragmentShader) {
   return program
 }
 
+export function getProgramUniforms(gl, program) {
+  const uniforms = new Map()
+  const count = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS)
+  for (let i = 0; i < count; i++) {
+    const info = gl.getActiveUniform(program, i)
+    const location = gl.getUniformLocation(program, info.name)
+    uniforms.set(info.name, { info, location })
+  }
+  return uniforms
+}
+
+export function getProgramAttributes(gl, program) {
+  const attributes = new Map()
+  const count = gl.getProgramParameter(program, gl.ACTIVE_ATTRIBUTES)
+  for (let i = 0; i < count; i++) {
+    const info = gl.getActiveAttrib(program, i)
+    const location = gl.getAttribLocation(program, info.name)
+    attributes.set(info.name, { info, location })
+  }
+  return attributes
+}
+
+export function getProgramAttributesAndUniforms(gl, program) {
+  return {
+    attributes: getProgramAttributes(gl, program),
+    uniforms: getProgramUniforms(gl, program),
+  }
+}
+
 export function createBuffer(
   gl,
   data,

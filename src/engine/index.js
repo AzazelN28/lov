@@ -1,5 +1,5 @@
 import { vec3, vec4, mat4 } from 'gl-matrix'
-import { createProgramFromSource, createTexture, createBuffer } from './gl.js'
+import { createProgramFromSource, getProgramAttributesAndUniforms, createTexture, createBuffer } from './gl.js'
 import { billboardTexture } from './textures/billboard.js'
 import { defaultTexture } from './textures/default.js'
 import defaultVertexShader from './shaders/texture-instanced.v.glsl'
@@ -50,6 +50,10 @@ class Transform {
  */
 function resize() {
   if (resizeAuto(state.canvas, 0.5)) {
+    state.input.mouse.coords.sensitivity.set(
+      state.canvas.width / 64,
+      state.canvas.height / 32
+    )
     state.camera.projection.aspectRatio = state.canvas.width / state.canvas.height
     mat4.perspective(
       state.camera.transform.projection,
@@ -121,7 +125,7 @@ function linear(x, a, b) {
 }
 
 function update() {
-  state.dayDuration = 60
+  state.dayDuration = 60 * 5
   state.dayTime = ((Date.now() / 1000) % state.dayDuration) / state.dayDuration
   state.dayStep = 1 / state.sky.colors.length
   state.dayCurrentIndex = Math.floor(state.sky.colors.length * state.dayTime)
@@ -217,14 +221,14 @@ function update() {
   // If pointerLockElement is view.canvas, then we should enable
   // 3D movement.
   if (document.pointerLockElement === state.canvas) {
-    // Move forward & backwards
-    if (state.input.keyboard.isPressed('KeyA') || state.input.keyboard.isPressed('ArrowLeft')) {
+    // Strafe left & right
+    if (state.input.isPressed('strafeLeft')) {
       vec3.add(
         state.camera.velocity,
         state.camera.velocity,
         state.camera.strafeLeft
       )
-    } else if (state.input.keyboard.isPressed('KeyD') || state.input.keyboard.isPressed('ArrowRight')) {
+    } else if (state.input.isPressed('strafeRight')) {
       vec3.add(
         state.camera.velocity,
         state.camera.velocity,
@@ -232,14 +236,14 @@ function update() {
       )
     }
 
-    // Strafe left & right
-    if (state.input.keyboard.isPressed('KeyW') || state.input.keyboard.isPressed('ArrowUp')) {
+    // Move forward & backwards
+    if (state.input.isPressed('forward')) {
       vec3.add(
         state.camera.velocity,
         state.camera.velocity,
         state.camera.forward
       )
-    } else if (state.input.keyboard.isPressed('KeyS') || state.input.keyboard.isPressed('ArrowDown')) {
+    } else if (state.input.isPressed('backward')) {
       vec3.add(
         state.camera.velocity,
         state.camera.velocity,
@@ -249,9 +253,9 @@ function update() {
 
     if (state.mode === Mode.GOD) {
       // Move up & down
-      if (state.input.keyboard.isPressed('KeyQ') || state.input.keyboard.isPressed('PageUp')) {
+      if (state.input.isPressed('up')) {
         vec3.add(state.camera.velocity, state.camera.velocity, Camera.UP)
-      } else if (state.input.keyboard.isPressed('KeyE') || state.input.keyboard.isPressed('PageDown')) {
+      } else if (state.input.isPressed('down')) {
         vec3.add(state.camera.velocity, state.camera.velocity, Camera.DOWN)
       }
     }
@@ -578,39 +582,39 @@ function render() {
   gl.useProgram(state.programs.default)
 
   gl.uniform1f(
-    gl.getUniformLocation(state.programs.default, 'u_fog_near'),
+    state.attribsAndUniforms.default.uniforms.get('u_fog_near').location,
     state.sky.near
   )
   gl.uniform1f(
-    gl.getUniformLocation(state.programs.default, 'u_fog_far'),
+    state.attribsAndUniforms.default.uniforms.get('u_fog_far').location,
     state.sky.far
   )
   gl.uniform4fv(
-    gl.getUniformLocation(state.programs.default, 'u_fog_color'),
+    state.attribsAndUniforms.default.uniforms.get('u_fog_color').location,
     state.sky.color
   )
 
   gl.uniformMatrix4fv(
-    gl.getUniformLocation(state.programs.default, 'u_mvp'),
+    state.attribsAndUniforms.default.uniforms.get('u_mvp').location,
     gl.FALSE,
     state.camera.transform.projectionView
   )
 
   gl.activeTexture(gl.TEXTURE0)
   gl.bindTexture(gl.TEXTURE_2D, state.textures.base)
-  gl.uniform1i(gl.getUniformLocation(state.programs.default, 'u_sampler'), 0)
+  gl.uniform1i(state.attribsAndUniforms.default.uniforms.get('u_sampler').location, 0)
   gl.uniform3fv(
-    gl.getUniformLocation(state.programs.default, 'u_color'),
+    state.attribsAndUniforms.default.uniforms.get('u_color').location,
     state.colors.default
   )
 
   // draws floor.
   gl.bindBuffer(gl.ARRAY_BUFFER, state.tile.floor.buffer)
   gl.enableVertexAttribArray(
-    gl.getAttribLocation(state.programs.default, 'a_coords')
+    state.attribsAndUniforms.default.attributes.get('a_coords').location
   )
   gl.vertexAttribPointer(
-    gl.getAttribLocation(state.programs.default, 'a_coords'),
+    state.attribsAndUniforms.default.attributes.get('a_coords').location,
     3,
     gl.FLOAT,
     gl.FALSE,
@@ -619,10 +623,10 @@ function render() {
   )
 
   gl.enableVertexAttribArray(
-    gl.getAttribLocation(state.programs.default, 'a_texcoords')
+    state.attribsAndUniforms.default.attributes.get('a_texcoords').location
   )
   gl.vertexAttribPointer(
-    gl.getAttribLocation(state.programs.default, 'a_texcoords'),
+    state.attribsAndUniforms.default.attributes.get('a_texcoords').location,
     2,
     gl.FLOAT,
     gl.FALSE,
@@ -632,10 +636,10 @@ function render() {
 
   gl.bindBuffer(gl.ARRAY_BUFFER, state.tiles.floor.offset.buffer)
   gl.enableVertexAttribArray(
-    gl.getAttribLocation(state.programs.default, 'a_offset')
+    state.attribsAndUniforms.default.attributes.get('a_offset').location
   )
   gl.vertexAttribPointer(
-    gl.getAttribLocation(state.programs.default, 'a_offset'),
+    state.attribsAndUniforms.default.attributes.get('a_offset').location,
     3,
     gl.FLOAT,
     gl.FALSE,
@@ -643,16 +647,16 @@ function render() {
     0
   )
   gl.vertexAttribDivisor(
-    gl.getAttribLocation(state.programs.default, 'a_offset'),
+    state.attribsAndUniforms.default.attributes.get('a_offset').location,
     1
   )
 
   gl.bindBuffer(gl.ARRAY_BUFFER, state.tiles.floor.texOffset.buffer)
   gl.enableVertexAttribArray(
-    gl.getAttribLocation(state.programs.default, 'a_texoffset')
+    state.attribsAndUniforms.default.attributes.get('a_texoffset').location
   )
   gl.vertexAttribPointer(
-    gl.getAttribLocation(state.programs.default, 'a_texoffset'),
+    state.attribsAndUniforms.default.attributes.get('a_texoffset').location,
     2,
     gl.FLOAT,
     gl.FALSE,
@@ -660,7 +664,7 @@ function render() {
     0
   )
   gl.vertexAttribDivisor(
-    gl.getAttribLocation(state.programs.default, 'a_texoffset'),
+    state.attribsAndUniforms.default.attributes.get('a_texoffset').location,
     1
   )
 
@@ -676,10 +680,10 @@ function render() {
   // draws north.
   gl.bindBuffer(gl.ARRAY_BUFFER, state.tile.north.buffer)
   gl.enableVertexAttribArray(
-    gl.getAttribLocation(state.programs.default, 'a_coords')
+    state.attribsAndUniforms.default.attributes.get('a_coords').location
   )
   gl.vertexAttribPointer(
-    gl.getAttribLocation(state.programs.default, 'a_coords'),
+    state.attribsAndUniforms.default.attributes.get('a_coords').location,
     3,
     gl.FLOAT,
     gl.FALSE,
@@ -688,10 +692,10 @@ function render() {
   )
 
   gl.enableVertexAttribArray(
-    gl.getAttribLocation(state.programs.default, 'a_texcoords')
+    state.attribsAndUniforms.default.attributes.get('a_texcoords').location
   )
   gl.vertexAttribPointer(
-    gl.getAttribLocation(state.programs.default, 'a_texcoords'),
+    state.attribsAndUniforms.default.attributes.get('a_texcoords').location,
     2,
     gl.FLOAT,
     gl.FALSE,
@@ -701,10 +705,10 @@ function render() {
 
   gl.bindBuffer(gl.ARRAY_BUFFER, state.tiles.north.offset.buffer)
   gl.enableVertexAttribArray(
-    gl.getAttribLocation(state.programs.default, 'a_offset')
+    state.attribsAndUniforms.default.attributes.get('a_offset').location
   )
   gl.vertexAttribPointer(
-    gl.getAttribLocation(state.programs.default, 'a_offset'),
+    state.attribsAndUniforms.default.attributes.get('a_offset').location,
     3,
     gl.FLOAT,
     gl.FALSE,
@@ -712,16 +716,16 @@ function render() {
     0
   )
   gl.vertexAttribDivisor(
-    gl.getAttribLocation(state.programs.default, 'a_offset'),
+    state.attribsAndUniforms.default.attributes.get('a_offset').location,
     1
   )
 
   gl.bindBuffer(gl.ARRAY_BUFFER, state.tiles.north.texOffset.buffer)
   gl.enableVertexAttribArray(
-    gl.getAttribLocation(state.programs.default, 'a_texoffset')
+    state.attribsAndUniforms.default.attributes.get('a_texoffset').location
   )
   gl.vertexAttribPointer(
-    gl.getAttribLocation(state.programs.default, 'a_texoffset'),
+    state.attribsAndUniforms.default.attributes.get('a_texoffset').location,
     2,
     gl.FLOAT,
     gl.FALSE,
@@ -729,7 +733,7 @@ function render() {
     0
   )
   gl.vertexAttribDivisor(
-    gl.getAttribLocation(state.programs.default, 'a_texoffset'),
+    state.attribsAndUniforms.default.attributes.get('a_texoffset').location,
     1
   )
   gl.uniform3fv(
@@ -746,10 +750,10 @@ function render() {
   // draws south.
   gl.bindBuffer(gl.ARRAY_BUFFER, state.tile.south.buffer)
   gl.enableVertexAttribArray(
-    gl.getAttribLocation(state.programs.default, 'a_coords')
+    state.attribsAndUniforms.default.attributes.get('a_coords').location
   )
   gl.vertexAttribPointer(
-    gl.getAttribLocation(state.programs.default, 'a_coords'),
+    state.attribsAndUniforms.default.attributes.get('a_coords').location,
     3,
     gl.FLOAT,
     gl.FALSE,
@@ -758,10 +762,10 @@ function render() {
   )
 
   gl.enableVertexAttribArray(
-    gl.getAttribLocation(state.programs.default, 'a_texcoords')
+    state.attribsAndUniforms.default.attributes.get('a_texcoords').location
   )
   gl.vertexAttribPointer(
-    gl.getAttribLocation(state.programs.default, 'a_texcoords'),
+    state.attribsAndUniforms.default.attributes.get('a_texcoords').location,
     2,
     gl.FLOAT,
     gl.FALSE,
@@ -771,10 +775,10 @@ function render() {
 
   gl.bindBuffer(gl.ARRAY_BUFFER, state.tiles.south.offset.buffer)
   gl.enableVertexAttribArray(
-    gl.getAttribLocation(state.programs.default, 'a_offset')
+    state.attribsAndUniforms.default.attributes.get('a_offset').location
   )
   gl.vertexAttribPointer(
-    gl.getAttribLocation(state.programs.default, 'a_offset'),
+    state.attribsAndUniforms.default.attributes.get('a_offset').location,
     3,
     gl.FLOAT,
     gl.FALSE,
@@ -782,16 +786,16 @@ function render() {
     0
   )
   gl.vertexAttribDivisor(
-    gl.getAttribLocation(state.programs.default, 'a_offset'),
+    state.attribsAndUniforms.default.attributes.get('a_offset').location,
     1
   )
 
   gl.bindBuffer(gl.ARRAY_BUFFER, state.tiles.south.texOffset.buffer)
   gl.enableVertexAttribArray(
-    gl.getAttribLocation(state.programs.default, 'a_texoffset')
+    state.attribsAndUniforms.default.attributes.get('a_texoffset').location
   )
   gl.vertexAttribPointer(
-    gl.getAttribLocation(state.programs.default, 'a_texoffset'),
+    state.attribsAndUniforms.default.attributes.get('a_texoffset').location,
     2,
     gl.FLOAT,
     gl.FALSE,
@@ -799,7 +803,7 @@ function render() {
     0
   )
   gl.vertexAttribDivisor(
-    gl.getAttribLocation(state.programs.default, 'a_texoffset'),
+    state.attribsAndUniforms.default.attributes.get('a_texoffset').location,
     1
   )
   gl.uniform3fv(
@@ -961,24 +965,24 @@ function render() {
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
     gl.uniform1f(
-      gl.getUniformLocation(state.programs.billboard, 'u_fog_near'),
+      state.attribsAndUniforms.billboard.uniforms.get('u_fog_near').location,
       state.sky.near
     )
     gl.uniform1f(
-      gl.getUniformLocation(state.programs.billboard, 'u_fog_far'),
+      state.attribsAndUniforms.billboard.uniforms.get('u_fog_far').location,
       state.sky.far
     )
     gl.uniform4fv(
-      gl.getUniformLocation(state.programs.billboard, 'u_fog_color'),
+      state.attribsAndUniforms.billboard.uniforms.get('u_fog_color').location,
       state.sky.color
     )
 
     gl.bindBuffer(gl.ARRAY_BUFFER, state.billboard.buffer)
     gl.enableVertexAttribArray(
-      gl.getAttribLocation(state.programs.billboard, 'a_coords')
+      state.attribsAndUniforms.billboard.attributes.get('a_coords').location
     )
     gl.vertexAttribPointer(
-      gl.getAttribLocation(state.programs.billboard, 'a_coords'),
+      state.attribsAndUniforms.billboard.attributes.get('a_coords').location,
       3,
       gl.FLOAT,
       gl.FALSE,
@@ -987,10 +991,10 @@ function render() {
     )
 
     gl.enableVertexAttribArray(
-      gl.getAttribLocation(state.programs.billboard, 'a_texcoords')
+      state.attribsAndUniforms.billboard.attributes.get('a_texcoords').location
     )
     gl.vertexAttribPointer(
-      gl.getAttribLocation(state.programs.billboard, 'a_texcoords'),
+      state.attribsAndUniforms.billboard.attributes.get('a_texcoords').location,
       2,
       gl.FLOAT,
       gl.FALSE,
@@ -1008,7 +1012,7 @@ function render() {
 
     for (let entity of state.entities) {
       gl.uniformMatrix4fv(
-        gl.getUniformLocation(state.programs.billboard, 'u_mvp'),
+        state.attribsAndUniforms.billboard.uniforms.get('u_mvp').location,
         gl.FALSE,
         entity.transform.projectionViewModel
       )
@@ -1016,15 +1020,15 @@ function render() {
       gl.activeTexture(gl.TEXTURE0)
       gl.bindTexture(gl.TEXTURE_2D, entity.texture)
       gl.uniform1i(
-        gl.getUniformLocation(state.programs.billboard, 'u_sampler'),
+        state.attribsAndUniforms.billboard.uniforms.get('u_sampler').location,
         0
       )
       gl.uniform3fv(
-        gl.getUniformLocation(state.programs.billboard, 'u_color'),
+        state.attribsAndUniforms.billboard.uniforms.get('u_color').location,
         entity.color
       )
       gl.uniform4fv(
-        gl.getUniformLocation(state.programs.billboard, 'u_texcoords'),
+        state.attribsAndUniforms.billboard.uniforms.get('u_texcoords').location,
         entity.uv
       )
       gl.drawArrays(gl.TRIANGLE_FAN, 0, state.billboard.vertices.length / 5, 1)
@@ -1035,19 +1039,32 @@ function render() {
 }
 
 function input(t) {
+  state.input.update()
   if (document.pointerLockElement === state.canvas) {
-    state.camera.rotation[0] += state.input.mouse.coords.relative.y / state.canvas.height
+    if (state.input.isPressed('lookUp')) {
+      // state.camera.rotation[0] += state.input.mouse.coords.relative.y / state.canvas.height
+      state.camera.rotation[0] -= 0.05 * state.input.stateOf('lookUp')
+    } else if (state.input.isPressed('lookDown')) {
+      // state.camera.rotation[0] += state.input.mouse.coords.relative.y / state.canvas.height
+      state.camera.rotation[0] += 0.05 * state.input.stateOf('lookDown')
+    }
     if (state.camera.rotation[0] < Math.PI * -MAX_LOOK_ANGLE) {
       state.camera.rotation[0] = Math.PI * -MAX_LOOK_ANGLE
     }
-
     if (state.camera.rotation[0] > Math.PI * MAX_LOOK_ANGLE) {
       state.camera.rotation[0] = Math.PI * MAX_LOOK_ANGLE
     }
 
-    state.camera.rotation[1] += -state.input.mouse.coords.relative.x / state.canvas.width
+    if (state.input.isPressed('turnLeft')) {
+      // state.camera.rotation[0] += state.input.mouse.coords.relative.y / state.canvas.height
+      state.camera.rotation[1] += 0.05 * state.input.stateOf('turnLeft')
+    } else if (state.input.isPressed('turnRight')) {
+      // state.camera.rotation[0] += state.input.mouse.coords.relative.y / state.canvas.height
+      state.camera.rotation[1] -= 0.05 * state.input.stateOf('turnRight')
+    }
+    // state.camera.rotation[1] += -state.input.mouse.coords.relative.x / state.canvas.width
   }
-  state.input.update()
+
 }
 
 const loop = new Loop([
@@ -1062,10 +1079,15 @@ function start() {
     defaultVertexShader,
     defaultFragmentShader
   )
+  state.attribsAndUniforms.default = getProgramAttributesAndUniforms(gl, state.programs.default)
   state.programs.billboard = createProgramFromSource(
     gl,
     billboardVertexShader,
     billboardFragmentShader
+  )
+  state.attribsAndUniforms.billboard = getProgramAttributesAndUniforms(
+    gl,
+    state.programs.billboard
   )
 
   state.textures.default = createTexture(gl, defaultTexture)

@@ -18,3 +18,4 @@ Excerpt from the [Wikipedia](https://en.wikipedia.org/wiki/Legends_of_Valour):
 - [ ] Add Inventory
 - [ ] Add Audio/Music
 - [ ] Add WebSockets server
+- [ ] Fix collision detection

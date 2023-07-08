@@ -8,6 +8,7 @@ export default class Coordinates {
     this.end = new Point()
     this.absolute = new Point()
     this.relative = new Point()
+    this.sensitivity = new Point(1, 1)
   }
 
   down(x, y, relative = false) {
@@ -33,10 +34,16 @@ export default class Coordinates {
     this.previous.copy(this.current)
     if (relative) {
       this.current.add(x, y)
-      this.relative.set(x, y)
+      this.relative
+        .set(x, y)
+        .divide(this.sensitivity)
+        .clamp(-1, 1)
     } else {
       this.current.set(x, y)
-      this.relative.copy(this.current).subtract(this.previous)
+      this.relative.copy(this.current)
+        .subtract(this.previous)
+        .divide(this.sensitivity)
+        .clamp(-1, 1)
     }
   }
 }

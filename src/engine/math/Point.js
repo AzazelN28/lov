@@ -85,6 +85,13 @@ export default class Point {
     return this.set(this.x / l, this.y / l)
   }
 
+  clamp(min, max) {
+    return this.set(
+      Math.max(min, Math.min(max, this.x)),
+      Math.max(min, Math.min(max, this.y))
+    )
+  }
+
   toString() {
     return `Point(${this.x}, ${this.y})`
   }

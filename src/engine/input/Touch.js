@@ -1,6 +1,6 @@
 import Coordinates from './Coordinates.js'
 
-export default class Pointer {
+export default class Touch {
   #target = null
   #coords = null
 

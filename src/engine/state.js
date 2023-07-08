@@ -16,6 +16,10 @@ export const state = {
     default: null,
     billboard: null,
   },
+  attribsAndUniforms: {
+    default: null,
+    billboard: null,
+  },
   programs: {
     default: null,
     billboard: null,
@@ -60,10 +64,10 @@ export const state = {
     colors: [
       vec4.fromValues(0.17, 0.66, 0.95, 1.0),
       vec4.fromValues(0.17, 0.66, 0.95, 1.0),
-      vec4.fromValues(0.17, 0.66, 0.95, 1.0),
+      vec4.fromValues(0.72, 0.64, 0.31, 1.0),
       vec4.fromValues(0.95, 0.63, 0.38, 1.0),
       vec4.fromValues(0.13, 0.16, 0.21, 1.0),
-      vec4.fromValues(0.13, 0.16, 0.21, 1.0),
+      vec4.fromValues(0.01, 0.01, 0.02, 1.0),
       vec4.fromValues(0.13, 0.16, 0.21, 1.0),
       vec4.fromValues(0.95, 0.63, 0.38, 1.0),
     ],
