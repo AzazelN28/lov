@@ -1,4 +1,4 @@
-import { vec3, mat4 } from 'gl-matrix'
+import { vec3, vec4, mat4 } from 'gl-matrix'
 import Mode from './Mode.js'
 import Input from './input/Input.js'
 
@@ -40,6 +40,35 @@ export const state = {
   mode: Mode.PLAYER,
   keys: new Map(),
   input: new Input(),
+  // 43, 168, 243 (0.17, 0.66, 0.95)
+  // 227, 147, 83 (0.95, 0.63, 0.38)
+  // 35,  43,  55 (0.13, 0.16, 0.21)
+  sky: {
+    near: 256,
+    far: 4352,
+    color: vec4.create(),
+    dists: [
+      [256, 4096],
+      [256, 4096],
+      [256, 4096],
+      [256, 4096],
+      [32, 1280],
+      [32, 1280],
+      [32, 1280],
+      [256, 4096],
+    ],
+    colors: [
+      vec4.fromValues(0.17, 0.66, 0.95, 1.0),
+      vec4.fromValues(0.17, 0.66, 0.95, 1.0),
+      vec4.fromValues(0.17, 0.66, 0.95, 1.0),
+      vec4.fromValues(0.95, 0.63, 0.38, 1.0),
+      vec4.fromValues(0.13, 0.16, 0.21, 1.0),
+      vec4.fromValues(0.13, 0.16, 0.21, 1.0),
+      vec4.fromValues(0.13, 0.16, 0.21, 1.0),
+      vec4.fromValues(0.95, 0.63, 0.38, 1.0),
+    ],
+  },
+  clearColor: vec4.fromValues(0.17, 0.66, 0.95, 1.0),
   camera: {
     position: vec3.fromValues(-82 * 64, 0, -56 * 64),
     previousPosition: vec3.create(),

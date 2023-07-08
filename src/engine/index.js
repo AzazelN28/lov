@@ -116,7 +116,32 @@ function collidesWithY(x, y, cx, cy) {
   return !(ntile & 0x01)
 }
 
+function linear(x, a, b) {
+  return a + x * (b - a)
+}
+
 function update() {
+  state.dayDuration = 60
+  state.dayTime = ((Date.now() / 1000) % state.dayDuration) / state.dayDuration
+  state.dayStep = 1 / state.sky.colors.length
+  state.dayCurrentIndex = Math.floor(state.sky.colors.length * state.dayTime)
+  state.dayStepProgress = ((state.sky.colors.length * state.dayTime) - state.dayCurrentIndex)
+  state.dayNextIndex = (state.dayCurrentIndex + 1) % state.sky.colors.length
+
+  state.sky.color[0] = linear(state.dayStepProgress, state.sky.colors[state.dayCurrentIndex][0], state.sky.colors[state.dayNextIndex][0])
+  state.sky.color[1] = linear(state.dayStepProgress, state.sky.colors[state.dayCurrentIndex][1], state.sky.colors[state.dayNextIndex][1])
+  state.sky.color[2] = linear(state.dayStepProgress, state.sky.colors[state.dayCurrentIndex][2], state.sky.colors[state.dayNextIndex][2])
+
+  state.sky.near = linear(state.dayStepProgress, state.sky.dists[state.dayCurrentIndex][0], state.sky.dists[state.dayNextIndex][0])
+  state.sky.far = linear(state.dayStepProgress, state.sky.dists[state.dayCurrentIndex][1], state.sky.dists[state.dayNextIndex][1])
+  /*
+  state.sky.color[3] = linear(
+    state.dayTime / state.dayStep,
+    state.sky.colors[state.dayCurrentIndex][3],
+    state.sky.colors[state.dayNextIndex][3]
+  )
+  */
+
   // VIEW ROTATION.
   if (state.mode === Mode.GOD) {
     mat4.identity(state.camera.transform.rotation)
@@ -545,12 +570,25 @@ function update() {
 function render() {
   const gl = state.context
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
-  gl.clearColor(0.17, 0.66, 0.95, 1.0)
+  gl.clearColor(...state.sky.color)
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
   gl.enable(gl.DEPTH_TEST)
   gl.disable(gl.CULL_FACE)
 
   gl.useProgram(state.programs.default)
+
+  gl.uniform1f(
+    gl.getUniformLocation(state.programs.default, 'u_fog_near'),
+    state.sky.near
+  )
+  gl.uniform1f(
+    gl.getUniformLocation(state.programs.default, 'u_fog_far'),
+    state.sky.far
+  )
+  gl.uniform4fv(
+    gl.getUniformLocation(state.programs.default, 'u_fog_color'),
+    state.sky.color
+  )
 
   gl.uniformMatrix4fv(
     gl.getUniformLocation(state.programs.default, 'u_mvp'),
@@ -922,6 +960,19 @@ function render() {
     gl.enable(gl.BLEND)
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
+    gl.uniform1f(
+      gl.getUniformLocation(state.programs.billboard, 'u_fog_near'),
+      state.sky.near
+    )
+    gl.uniform1f(
+      gl.getUniformLocation(state.programs.billboard, 'u_fog_far'),
+      state.sky.far
+    )
+    gl.uniform4fv(
+      gl.getUniformLocation(state.programs.billboard, 'u_fog_color'),
+      state.sky.color
+    )
+
     gl.bindBuffer(gl.ARRAY_BUFFER, state.billboard.buffer)
     gl.enableVertexAttribArray(
       gl.getAttribLocation(state.programs.billboard, 'a_coords')
@@ -986,11 +1037,13 @@ function render() {
 function input(t) {
   if (document.pointerLockElement === state.canvas) {
     state.camera.rotation[0] += state.input.mouse.coords.relative.y / state.canvas.height
-    if (state.camera.rotation[0] < Math.PI * -MAX_LOOK_ANGLE)
+    if (state.camera.rotation[0] < Math.PI * -MAX_LOOK_ANGLE) {
       state.camera.rotation[0] = Math.PI * -MAX_LOOK_ANGLE
+    }
 
-    if (state.camera.rotation[0] > Math.PI * MAX_LOOK_ANGLE)
+    if (state.camera.rotation[0] > Math.PI * MAX_LOOK_ANGLE) {
       state.camera.rotation[0] = Math.PI * MAX_LOOK_ANGLE
+    }
 
     state.camera.rotation[1] += -state.input.mouse.coords.relative.x / state.canvas.width
   }
@@ -1336,6 +1389,21 @@ function getOutsideTexture(texture) {
   return texture & 0x0f
 }
 
+function hasNorthWall(tile) {
+  return (tile >> 5) & 0x01
+}
+
+function hasWestWall(tile) {
+  return (tile >> 6) & 0x01
+}
+
+function hasSecondFloor(tile) {
+  return tile & 0x01 || tile & 0x02
+}
+
+/**
+ * Crea un buffer de tiles.
+ */
 function createTilesBuffer(gl, data, textureData) {
   const typedArray = new Float32Array(data)
 
@@ -1395,9 +1463,9 @@ function createTilesBufferFromImage(gl, image, width = MAP_WIDTH, height = MAP_H
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       // useful offsets.
-      const offset = (y * width + x) * 4
-      const upOffset = ((y - 1) * width + x) * 4
-      const leftOffset = (y * width + (x - 1)) * 4
+      const offset = getDataOffset(x, y, width)
+      const upOffset = getDataOffset(x, y - 1, width)
+      const leftOffset = getDataOffset(x - 1, y, width)
 
       const current = mapData.data[offset]
       const sprite = isSprite(current)
@@ -1464,9 +1532,9 @@ function createTilesBufferFromImage(gl, image, width = MAP_WIDTH, height = MAP_H
         floorTextureData.push(floorX, floorY)
       }
 
-      const hasNorthWall = (current >> 5) & 0x01
-      const hasWestWall = (current >> 6) & 0x01
-      if (hasNorthWall) {
+      // const hasNorthWall = (current >> 5) & 0x01
+      // const hasWestWall = (current >> 6) & 0x01
+      if (hasNorthWall(current)) {
         if (
           !(isExterior(current) && outside === 0) &&
           !(isInterior(current) && inside === 0 && !isExterior(up))
@@ -1489,7 +1557,7 @@ function createTilesBufferFromImage(gl, image, width = MAP_WIDTH, height = MAP_H
         }
 
         // TODO: Investigate how this shit works.
-        if (height & 0x01 || height & 0x02) {
+        if (hasSecondFloor(height)) {
           northData.push(-x * TILE_SIZE, -TILE_SIZE, -y * TILE_SIZE)
           southData.push(-x * TILE_SIZE, -TILE_SIZE, -y * TILE_SIZE)
           northTextureData.push(tileHX, tileHY)
@@ -1497,7 +1565,7 @@ function createTilesBufferFromImage(gl, image, width = MAP_WIDTH, height = MAP_H
         }
       }
 
-      if (hasWestWall) {
+      if (hasWestWall(current)) {
         if (
           !(isExterior(current) && outside === 0) &&
           !(isInterior(current) && inside === 0 && !isExterior(left))
@@ -1519,7 +1587,7 @@ function createTilesBufferFromImage(gl, image, width = MAP_WIDTH, height = MAP_H
           }
         }
 
-        if (height & 0x01 || height & 0x02) {
+        if (hasSecondFloor(height)) {
           westData.push(-x * TILE_SIZE, -TILE_SIZE, -y * TILE_SIZE)
           eastData.push(-x * TILE_SIZE, -TILE_SIZE, -y * TILE_SIZE)
           westTextureData.push(tileHX, tileHY)

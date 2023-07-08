@@ -2,6 +2,7 @@ import Input from './input/Input.js'
 import Loop from './core/Loop.js'
 
 export default class Engine {
+  #loop = null
   #scheduler = null
   #input = null
   #audio = null
@@ -24,10 +25,10 @@ export default class Engine {
   }
 
   start() {
-    this.#input.start()
+    this.#systems.forEach((system) => system.start())
   }
 
   stop() {
-    this.#input.stop()
+    this.#systems.forEach((system) => system.stop())
   }
 }
